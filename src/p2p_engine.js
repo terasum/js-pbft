@@ -50,14 +50,13 @@ P2PEngine.prototype.init = function init(){
                 }
             }catch(e){
                 logger.error(e.toString());
-                // that.listener.emit(EvType.PING, chunk);
                 socket.write("server error catched!\r\n");
-                // socket.end();
             }
         });
-        // c.write("hello\r\n");
-        // c.pipe(c);
-        // const from_addr = socket.address();
+
+        socket.on('error', (e) => {
+            throw e;
+        })
     });
 
     that.server.on("error", (err) => {
@@ -128,6 +127,7 @@ P2PEngine.prototype.connect = function connect(target){
 
     client.on("error", (e) => {
         logger.error("connect/send to target " + target.id + " failed");
+        this.remove_peer(target.id);
     });
 
     client.on("connect", (c) =>{
@@ -152,6 +152,25 @@ P2PEngine.prototype.add_peer = function add_peer(id, socket, type){
         logger.debug("add peer id: " + id);
     }else{
         logger.debug("peer: "+ id +" already saved, ignore.");
+    }
+}
+
+P2PEngine.prototype.remove_peer = function remove_peer(id){
+    if(!this.peers[id]){return};
+    try{
+        let s = this.peers[id];
+        if (!s){
+            s.end();
+        }
+    }catch(e){
+        logger.warn("close " + id + " socket failed, ignore and delete, err: " + e.toString());
+    }
+    delete(this.peers[id]);
+}
+
+P2PEngine.prototype.print_peers = function print_peers(){
+    for(let id in this.peers ){
+        console.log(id);
     }
 }
 

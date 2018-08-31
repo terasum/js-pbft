@@ -10,7 +10,7 @@ const Message = require("./message");
 const MsgType = require("./message_type");
 
 
-// Replica class definition
+// Replica class
 function Replica(){}
 
 // -----------------------
@@ -64,7 +64,7 @@ Replica.prototype.init = function init(emitter, config){
     this._bindEvent();
 }
 
-// listening the client network
+// listen start server listen
 Replica.prototype.listen = function listen() {
     // start listening network message
     this.engine.listen();
@@ -72,6 +72,7 @@ Replica.prototype.listen = function listen() {
 
 // connect to the nodes
 Replica.prototype.conn = function conn(nodes){
+    // start connect to timeout after 1000 ms
     setTimeout(() => {
         logger.debug("start connect to server (timeout) ...");
         for( let i = 0; i < nodes.length; i++){
@@ -80,14 +81,23 @@ Replica.prototype.conn = function conn(nodes){
     }, 1000);
 }
 
+// send message specific node id with payload
 Replica.prototype.send = function send(id, pld) {
     logger.debug("send message to " + id);
     let msg = new Message(id, pld, MsgType.MSG);
-    this.engine.send_msg(id, msg.toString());
+    try{
+        this.engine.send_msg(id, msg.toString());
+    }catch(e){
+        logger.error(e.toString());
+        this.engine.remove_peer(id);
+    }
 }
 
+Replica.prototype.ppeer = function ppeer(){
+    this.engine.print_peers();
+}
 
-// start function
+// start a replica
 Replica.prototype.start = function start(config_path){
     const cpath = path.resolve(cwd, config_path)
     logger.info("load config: " + cpath);
@@ -100,14 +110,16 @@ Replica.prototype.start = function start(config_path){
     const config = JSON.parse(cfs.toString("utf-8"));
     // global event listener
     const emitter = new EventEmitter();
-    // replica
+
+    // init replica
     this.init(emitter, config.self);
 
+    // start server listening
     this.listen();
 
+    // connect to other nodes
     this.conn(config.nodes);
-
-    setTimeout(() => {this.send(1, "test") } , 2000 );
+    // test send
 }
 
 module.exports = Replica;

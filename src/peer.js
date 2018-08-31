@@ -2,9 +2,6 @@ function Peer(s, type) {
     this.socket = s;
     this.type = type;
 
-    this.socket.on('err', (err) => {
-      console.error(err.toString());
-    });
 
 }
 
