@@ -1,0 +1,31 @@
+{
+    "self":{
+        "selfid": 3,
+        "name"  : "node1",
+        "port"  : 8123
+    },
+    "nodes" : [
+        {
+            "port": 8121,
+            "host": "localhost",
+            "id": 1
+        },
+        {
+            "port": 8122,
+            "host": "localhost",
+            "id": 2
+        },
+        {
+            "port": 8123,
+            "host": "localhost",
+            "id": 3
+        },
+        {
+            "port": 8124,
+            "host": "localhost",
+            "id": 4
+        }
+
+    ]
+}
+
