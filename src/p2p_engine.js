@@ -28,16 +28,17 @@ P2PEngine.prototype.init = function init(){
         });
 
         // set socket data encode
-        // socket.setEncoding("utf8");
+        socket.setEncoding("utf8");
 
         // handle the client message
         socket.on("data", (chunk) => {
-            // console.log(socket.address());
             try{
                 let conn = JSON.parse(chunk);
                 // check connection
                 if(!conn || !conn.msgType) {
-                    throw new Error("invalid connection");
+                    logger.error("chunk:\n\t" + chunk +"\nconn:\n\t"+ conn);
+                    console.log(conn);
+                    throw new Error("invalid message(c)" + conn);
                 }
                 // establish connection
                 if (conn &&
@@ -45,11 +46,11 @@ P2PEngine.prototype.init = function init(){
                     conn.msgType === MsgType.CONN){
                     this.add_peer(conn.from, socket, PeerType.SERVER)
                 }else{
-                    // TODO change to recv
-                    that.listener.emit(EvType.PONG, conn);
+                    that.recev(conn);
+                    // that.listener.emit(EvType.PONG, conn);
                 }
             }catch(e){
-                logger.error(e.toString());
+                console.error(e);
                 socket.write("server error catched!\r\n");
             }
         });
@@ -92,6 +93,9 @@ P2PEngine.prototype.connect = function connect(target){
                 target.id);
         });
 
+    // set socket data encoding
+    client.setEncoding("utf-8");
+
     client.on("connect", () => {
         // send slef infomation to server
         let connmsg = new Message(
@@ -105,17 +109,16 @@ P2PEngine.prototype.connect = function connect(target){
     })
 
     client.on("data", (data) => {
-        logger.debug("server response, from" + target.id);
         try{
-            let conn = JSON.parse(data.toString("utf-8"));
-                // check connection
-                if(!conn || !conn.msgType) {
-                    throw new Error("invalid connection");
-                }
-            //TODO change to recv
-                that.listener.emit(EvType.PONG, conn);
+            let conn = JSON.parse(data);
+            // check connection
+            if(!conn || !conn.msgType) {
+                throw new Error("invalid message(s):" + data);
+            }
+            that.recev(conn);
+            // that.listener.emit(EvType.PONG, conn);
         }catch(e){
-           logger.error(e.toString());
+           console.error(e);
         }
         // TODO event handle
         // client.end();
@@ -136,10 +139,13 @@ P2PEngine.prototype.connect = function connect(target){
 
 }
 
+// recev msg and post higher layer
 P2PEngine.prototype.recev = function recev(msg){
-    this.listener.emit(EvType.SESSION, msg);
+    // get the payload and post to replica
+    this.listener.emit(EvType.SESSION, msg.payload);
 }
 
+// add a peer
 P2PEngine.prototype.add_peer = function add_peer(id, socket, type){
     if (!socket) {
         logger.warn("socket is nil, add ignore");
@@ -155,6 +161,7 @@ P2PEngine.prototype.add_peer = function add_peer(id, socket, type){
     }
 }
 
+// remove a peer
 P2PEngine.prototype.remove_peer = function remove_peer(id){
     if(!this.peers[id]){return};
     try{
@@ -164,20 +171,32 @@ P2PEngine.prototype.remove_peer = function remove_peer(id){
         }
     }catch(e){
         logger.warn("close " + id + " socket failed, ignore and delete, err: " + e.toString());
+        logger.error(e);
     }
     delete(this.peers[id]);
 }
 
+
+// print current connected peers
 P2PEngine.prototype.print_peers = function print_peers(){
     for(let id in this.peers ){
         console.log(id);
     }
 }
 
-P2PEngine.prototype.send_msg = function(target_id, msg){
+//send_msg to specific peer 
+P2PEngine.prototype.send_msg = function(target_id, payload){
     if(this.peers[target_id]) {
         target = this.peers[target_id];
-        target.send(msg);
+        let msg = new Message(target_id, payload, MsgType.MSG);
+        msg.setFrom(this.id);
+        try{
+            target.send(msg.toString());
+        }catch(e){
+            logger.error("target send message error");
+            console.error(e);
+            // TODO remove peer
+        }
     }else{
         logger.debug("target: " + target_id + " not connected yet, ignore send");
     }

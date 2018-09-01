@@ -1,0 +1,5 @@
+module.exports = {
+  PREPREPARE: 'PRE-PREPARE',
+  PREPARE: 'PREPARE',
+  COMMIT: 'COMMIT',
+}
