@@ -83,12 +83,21 @@
  */
 
 const repl = require("repl");
+const argv = require('yargs').argv; 
 
 const Replica = require("./src/replica");
 
 // new a replica
 const replica = new Replica();
 
+// parse argument
+if (argv.id > 0 && argv.id <= 4){
+  replica.s(argv.id)
+}
+
 // start repl
 let r = repl.start('js-pbft>');
+
+global.replica = replica;
+
 r.context.rep = replica;

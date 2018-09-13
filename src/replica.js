@@ -3,6 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const cwd = require("process").cwd();
 const EventEmitter = require("events");
+const LuaVM = require('lua.vm.js');
+const base64 = require('base-64');
+const utf8 = require('utf8');
 
 const EvType = require("./event_type");
 const P2PEngine = require("./p2p_engine");
@@ -11,9 +14,19 @@ const MsgType = require("./message_type");
 
 const Consenter = require("./consensus/consenter");
 
+const fab = require("./lua/fab.lua.js");
+const inter = require("./lua/interoperability.lua.js")
+
 
 // Replica class
-function Replica(){}
+function Replica(){
+    this.version = '1.0'
+    this.name = "default"
+}
+
+Replica.prototype.say = function(){
+    console.log("Replica: " + this.name)
+}
 
 // -----------------------
 // PRIVATE METHODS
@@ -59,6 +72,37 @@ Replica.prototype._bindEvent = function _bindEvent(){
         // send to consenter
         this.cons_lisenter.emit(msg.consMsgType, msg);
     });
+    // after consensus execute transaction
+    this.lis.on(EvType.EXECUTE, (seqnum, msg) => {
+        logger.info("execute seqnum: " + seqnum)
+        console.log(msg)
+        if (msg && msg.msg){
+            console.log("------ EXECUTE LUA script ------")
+            try{
+                let script = msg.msg
+                if (script.startsWith('"')){
+                    script = script.substring(1)
+                }
+                if (script.endsWith('"')){
+                    script = script.substring(0, script.length - 1)
+                }
+                script = base64.decode(utf8.decode(script))
+                console.log("lua script:")
+                console.log()
+                console.log(script)
+                console.log()
+                console.log("result:")
+                this.lua.execute(script);
+
+            }catch(e){
+                logger.error("execute lua script failed")
+                console.error(e)
+            }
+        }else{
+            logger.error("invalid lua script")
+        }
+        
+    })
 }
 
 // -----------------------
@@ -73,12 +117,12 @@ Replica.prototype.init = function init(emitter, config){
     this.clients = {};
     this.cons_lisenter = new EventEmitter();
 
-    // init consenter 
+    // init consenter
     // first param id is current id
     // second param need a node list
     // third need a send func
     this.consenter = new Consenter(
-        this.id, 
+        this.id,
         config.nodes, // nodes list
         this.lis,
         this.cons_lisenter
@@ -91,6 +135,9 @@ Replica.prototype.init = function init(emitter, config){
     this._initNet();
     // init event listener
     this._bindEvent();
+
+    // init lua vm
+    this.lua = new LuaVM.Lua.State();
 }
 
 // listen start server listen
@@ -156,10 +203,13 @@ Replica.prototype.start = function start(config_path){
 // request the primary node
 // emulate the client send the request
 Replica.prototype.request = function(umsg){
-   if(!umsg) umsg = "TESTREQUEST";
+   // if(!umsg) umsg = 'print("Hello, world")';
+   // if(!umsg) umsg = fab;
+   if(!umsg) umsg = inter;
    // set a simple message
    logger.info("node got a request: " + umsg)
-   this.consenter.request(umsg);
+   umsg_encoded = base64.encode(utf8.encode(umsg))
+   this.consenter.request(umsg_encoded);
 }
 
 

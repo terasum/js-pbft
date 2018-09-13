@@ -112,7 +112,17 @@ Consenter.prototype.init = function () {
     // TODO n = that.seqnum cannot update during checking
     let iscmlocal = that.committed_local(undefined, that.view, that.seqnum, that.id);
     if(iscmlocal){
-      logger.info("COMMITTED-LOCAL! Now you can do some operation");
+      logger.info("COMMITTED-LOCAL!");
+      // commit
+      // get msg and post to execute
+      let msg = this.filelog.get({
+        seqnum: that.seqnum,
+        consMsgType: ConsType.PREPREPARE,
+      })
+      this.listener.emit(EvType.EXECUTE, that.seqnum, msg)
+      this.high_watermark += 1
+      this.low_watermark  += 1
+
     }else{
       // recheck
       setTimeout(() => {
@@ -295,7 +305,7 @@ Consenter.prototype.handle_preprepare = function (msg) {
   this.muticast(prepare_msg);
 
   // start timer to check prepared
-  // after about 1s we check 
+  // after about 1s we check
   // current node prepared or not
 
   setTimeout(() => {
@@ -343,10 +353,7 @@ Consenter.prototype.handle_commit = function (msg) {
   // and i has accepted 2f + 1 commits (possibly including its own);
   // match preprepare
 
-  // commited-local loop started at preprepare check 
-
-  
-
+  // commited-local loop started at preprepare check
 
 }
 module.exports = Consenter;
